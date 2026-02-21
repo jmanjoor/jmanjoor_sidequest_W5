@@ -35,7 +35,7 @@ class BlobPlayer {
     this.onGround = false;
 
     this.gravity = level.gravity;
-    this.jumpV = level.jumpV;
+    this.vy = level.jumpV * 1.2;
   }
 
   tryJump() {
@@ -67,27 +67,39 @@ class BlobPlayer {
 
     // move X
     box.x += this.vx;
-    for (const s of level.platforms) {
-      if (BlobPlayer.overlap(box, s)) {
-        if (this.vx > 0) box.x = s.x - box.w;
-        else if (this.vx < 0) box.x = s.x + s.w;
-        this.vx = 0;
+
+    if (this.vx !== 0) {
+      // ✅ only collide if actually moving sideways
+      for (const s of level.platforms) {
+        if (BlobPlayer.overlap(box, s)) {
+          const EPS = 0.01;
+
+          if (this.vx > 0) box.x = s.x - box.w - EPS;
+          else if (this.vx < 0) box.x = s.x + s.w + EPS;
+
+          this.vx = 0;
+          break;
+        }
       }
     }
-
     // move Y
     box.y += this.vy;
     this.onGround = false;
+
     for (const s of level.platforms) {
       if (BlobPlayer.overlap(box, s)) {
+        const EPS = 0.01;
+
         if (this.vy > 0) {
-          box.y = s.y - box.h;
+          box.y = s.y - box.h - EPS;
           this.vy = 0;
           this.onGround = true;
         } else if (this.vy < 0) {
-          box.y = s.y + s.h;
+          box.y = s.y + s.h + EPS;
           this.vy = 0;
         }
+
+        break;
       }
     }
 
@@ -102,7 +114,9 @@ class BlobPlayer {
   }
 
   draw(colHex) {
-    fill(color(colHex));
+    const c = color(colHex);
+    c.setAlpha(180);
+    fill(c);
     noStroke();
     beginShape();
     for (let i = 0; i < this.points; i++) {

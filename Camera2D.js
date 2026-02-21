@@ -5,10 +5,12 @@ class Camera2D {
     this.x = 0;
     this.y = 0;
   }
-
-  followSideScrollerX(targetX, lerpAmt) {
+  followSideScrollerX(targetX, lerpAmt, calm = false) {
     const desired = targetX - this.viewW / 2;
-    this.x = lerp(this.x, desired, lerpAmt);
+    const amt = calm ? lerpAmt * 0.4 : lerpAmt;
+    this.x = lerp(this.x, desired, amt);
+
+    this.x += sin(frameCount * 0.002) * 0.2;
   }
 
   clampToWorld(worldW, worldH) {
