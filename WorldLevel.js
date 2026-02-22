@@ -7,27 +7,23 @@ class WorldLevel {
       levelJson.theme ?? {},
     );
 
-    // Physics knobs
+    // Physics settings from JSON
     this.gravity = levelJson.gravity ?? 0.65;
     this.jumpV = levelJson.jumpV ?? -11.0;
-
-    // Camera knob
     this.camLerp = levelJson.camera?.lerp ?? 0.12;
 
-    // World size + death line
+    // World size + death line (Default h=600 for Level 2 visibility)
     this.w = levelJson.world?.w ?? 2400;
-    this.h = levelJson.world?.h ?? 360;
+    this.h = levelJson.world?.h ?? 600;
     this.deathY = levelJson.world?.deathY ?? this.h + 200;
 
-    // Start
     this.start = Object.assign({ x: 80, y: 220, r: 26 }, levelJson.start ?? {});
 
-    // Platforms
     this.platforms = (levelJson.platforms ?? []).map(
       (p) => new Platform(p.x, p.y, p.w, p.h),
     );
 
-    // End zone (goal strip at far right)
+    // End zone detection
     const e = levelJson.end ?? { x: this.w - 120, w: 80 };
     this.endZone = {
       x: e.x ?? this.w - 120,
@@ -36,77 +32,54 @@ class WorldLevel {
       h: this.h,
     };
 
-    // Collectibles: support BOTH formats:
-    // A) array: [{x,y,shape,color}, ...]
-    // B) object: {count, seed}
     const cData = levelJson.collectibles ?? { count: 8, seed: 3025 };
-
     this.collectibles = [];
     this.collectedCount = 0;
 
-    // ---------- CASE A: explicit list ----------
     if (Array.isArray(cData)) {
+      // CASE A: Fixed item list
       this.collectCountTarget = cData.length;
-
       for (const item of cData) {
-        const shape = item.shape ?? "circle";
         const col = color(item.color ?? "#88AADD");
         col.setAlpha(210);
-
         this.collectibles.push({
           x: item.x,
           y: item.y,
           r: 12,
-          shape,
+          shape: item.shape ?? "circle",
           col,
           collected: false,
         });
       }
-      return;
-    }
+    } else {
+      // CASE B: Procedural items for Level 2
+      this.collectSeed = cData.seed ?? 3025;
+      this.collectCountTarget = cData.count ?? 8;
+      randomSeed(this.collectSeed);
+      const shapes = ["circle", "square", "triangle", "star"];
+      let candidates = this.platforms.filter((p) => p.w >= 60);
+      if (candidates.length === 0) candidates = this.platforms;
 
-    // ---------- CASE B: procedural ----------
-    this.collectSeed = cData.seed ?? 3025;
-    this.collectCountTarget = cData.count ?? 8;
-
-    randomSeed(this.collectSeed);
-
-    const shapes = ["circle", "square", "triangle", "star"];
-
-    // pick “safe” platforms: wide enough + not too high
-    let candidates = this.platforms.filter((p) => p.w >= 90 && p.y >= 260);
-    if (candidates.length === 0) candidates = this.platforms;
-
-    const r = 12;
-    const margin = 30;
-
-    for (let i = 0; i < this.collectCountTarget; i++) {
-      const plat = random(candidates);
-
-      // avoid placing inside end zone area
-      let x = random(plat.x + margin, plat.x + plat.w - margin);
-      if (x > this.endZone.x - 40) x = this.endZone.x - 60;
-
-      // always just above platform surface (reachable + visible)
-      const y = plat.y - (r + 10);
-
-      const shape = random(shapes);
-      const col = color(random(60, 200), random(60, 200), random(60, 200));
-      col.setAlpha(210);
-
-      this.collectibles.push({
-        x,
-        y,
-        r,
-        shape,
-        col,
-        collected: false,
-      });
+      for (let i = 0; i < this.collectCountTarget; i++) {
+        const plat = random(candidates);
+        let x = random(plat.x + 20, plat.x + plat.w - 20);
+        if (x > this.endZone.x - 20) x = this.endZone.x - 40;
+        const y = plat.y - 25;
+        const col = color(random(100, 255), random(100, 255), random(100, 255));
+        col.setAlpha(210);
+        this.collectibles.push({
+          x,
+          y,
+          r: 12,
+          shape: random(shapes),
+          col,
+          collected: false,
+        });
+      }
     }
   }
 
   playerInEndZone(player) {
-    // player is a circle, endZone is a rect
     return (
       player.x + player.r > this.endZone.x &&
       player.x - player.r < this.endZone.x + this.endZone.w &&
@@ -118,9 +91,7 @@ class WorldLevel {
   updateCollectibles(player) {
     for (const it of this.collectibles) {
       if (it.collected) continue;
-
-      const d = dist(player.x, player.y, it.x, it.y);
-      if (d < player.r + it.r) {
+      if (dist(player.x, player.y, it.x, it.y) < player.r + it.r) {
         it.collected = true;
         this.collectedCount++;
       }
@@ -130,55 +101,35 @@ class WorldLevel {
   drawWorld() {
     background(this.theme.bg);
     push();
-    rectMode(CORNER);
     noStroke();
-
-    // platforms
     fill(this.theme.platform);
-    for (const p of this.platforms) {
-      rect(p.x, p.y, p.w, p.h);
-    }
-
-    // end zone strip
-    push();
-    noStroke();
+    for (const p of this.platforms) rect(p.x, p.y, p.w, p.h);
     fill(30, 30, 30, 35);
     rect(this.endZone.x, 0, this.endZone.w, this.endZone.h);
-    pop();
 
-    // collectibles
     for (const it of this.collectibles) {
       if (it.collected) continue;
-
       push();
       translate(it.x, it.y);
-
-      const a = 160 + sin(frameCount * 0.02) * 60;
       const c = color(it.col);
-      c.setAlpha(a);
+      c.setAlpha(160 + sin(frameCount * 0.02) * 60);
       fill(c);
-      noStroke();
-
-      if (it.shape === "circle") {
-        ellipse(0, 0, it.r * 2);
-      } else if (it.shape === "square") {
+      if (it.shape === "circle") ellipse(0, 0, 24);
+      else if (it.shape === "square") {
         rectMode(CENTER);
-        rect(0, 0, it.r * 2, it.r * 2);
-      } else if (it.shape === "triangle") {
-        triangle(0, -it.r, -it.r, it.r, it.r, it.r);
-      } else if (it.shape === "star") {
+        rect(0, 0, 24, 24);
+      } else if (it.shape === "triangle") triangle(0, -12, -12, 12, 12, 12);
+      else if (it.shape === "star") {
         beginShape();
         for (let k = 0; k < 10; k++) {
-          const ang = (k / 10) * TAU - HALF_PI;
-          const rad = k % 2 === 0 ? it.r : it.r * 0.45;
+          let ang = (k / 10) * TAU - HALF_PI;
+          let rad = k % 2 === 0 ? 12 : 5;
           vertex(cos(ang) * rad, sin(ang) * rad);
         }
         endShape(CLOSE);
       }
-
       pop();
     }
-
     pop();
   }
 }

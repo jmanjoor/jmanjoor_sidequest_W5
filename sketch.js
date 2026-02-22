@@ -13,6 +13,7 @@ let cam;
 let levelCompleteTimer = 0;
 
 function preload() {
+  // SAFE: no query string
   allLevelsData = loadJSON("levels.json");
 }
 
@@ -26,32 +27,33 @@ function setup() {
 }
 
 function loadLevel(i) {
-  const levels = allLevelsData.levels;
+  const levels = allLevelsData?.levels;
 
   if (!Array.isArray(levels)) {
-    console.error("levels.json failed to load");
-    return;
-  }
-
-  // Check if we are out of levels
-  if (i >= levels.length) {
+    console.error("levels.json failed to load:", allLevelsData);
     gameFinished = true;
     return;
   }
 
-  levelIndex = i; // This updates the global index
+  if (i < 0 || i >= levels.length) {
+    gameFinished = true;
+    return;
+  }
+
+  levelIndex = i;
   level = LevelLoader.fromLevelsJson(allLevelsData, levelIndex);
 
   player = new BlobPlayer();
   player.spawnFromLevel(level);
 
-  // Reset camera for the new level
   cam.x = player.x - width / 2;
   cam.y = 0;
   cam.clampToWorld(level.w, level.h);
 
   levelCompleteTimer = 0;
   gameFinished = false;
+
+  console.log("Loaded:", levelIndex, level.name, "levels:", levels.length);
 }
 
 function respawnHere() {
@@ -71,60 +73,50 @@ function draw() {
     return;
   }
 
-  // --- game state ---
   player.update(level);
   level.updateCollectibles(player);
 
-  // fall death -> respawn
   if (player.y - player.r > level.deathY) {
     respawnHere();
   }
 
-  // --- completion rule: ALL collected + REACH end zone ---
   const allCollected = level.collectedCount >= level.collectCountTarget;
   const reachedEnd = level.playerInEndZone(player);
 
   if (allCollected && reachedEnd) {
     levelCompleteTimer++;
-
     if (levelCompleteTimer > 45) {
-      if (levelIndex < allLevelsData.levels.length - 1) {
-        loadLevel(levelIndex + 1);
-        return;
-      } else {
-        gameFinished = true;
-        return;
-      }
+      loadLevel(levelIndex + 1);
+      return;
     }
   } else {
     levelCompleteTimer = 0;
   }
 
-  // --- camera (calmer after all collected) ---
-  const calm = allCollected;
-  cam.followSideScrollerX(player.x, level.camLerp, calm);
+  cam.followSideScrollerX(player.x, level.camLerp, allCollected);
   cam.y = 0;
   cam.clampToWorld(level.w, level.h);
 
-  // --- draw ---
   cam.begin();
   level.drawWorld();
   player.draw(level.theme.blob);
   cam.end();
 
-  // HUD
   fill(0);
   noStroke();
-  text(level.name + " (Example 5)", 10, 18);
-  text("A/D or ←/→ move • Space/W/↑ jump • Fall = respawn", 10, 36);
-  text("camLerp(JSON): " + level.camLerp + "  world.w: " + level.w, 10, 54);
   text(
-    "collected: " + level.collectedCount + "/" + level.collectCountTarget,
+    `${level.name} | idx ${levelIndex}/${allLevelsData.levels.length - 1}`,
     10,
-    72,
+    18,
   );
-  text("Goal: dark strip at far right → enter after collecting all", 10, 90);
-  text("Press K to respawn if stuck", 10, 108);
+  text("A/D or ←/→ move • Space/W/↑ jump • Fall = respawn", 10, 36);
+  text(
+    `collected: ${level.collectedCount}/${level.collectCountTarget}`,
+    10,
+    54,
+  );
+  text("Goal: dark strip at far right → enter after collecting all", 10, 72);
+  text("Press K to respawn if stuck • R to restart level", 10, 90);
 }
 
 function keyPressed() {
