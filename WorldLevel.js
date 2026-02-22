@@ -27,49 +27,92 @@ class WorldLevel {
       (p) => new Platform(p.x, p.y, p.w, p.h),
     );
 
-    // --- End zone (finish area) ---
-    // Default: last 120px of the world
-    this.endZone = levelJson.endZone ?? {
-      x: this.w - 140,
+    // End zone (goal strip at far right)
+    const e = levelJson.end ?? { x: this.w - 120, w: 80 };
+    this.endZone = {
+      x: e.x ?? this.w - 120,
       y: 0,
-      w: 140,
+      w: e.w ?? 80,
       h: this.h,
     };
 
-    // --- Collectibles (deterministic via seed) ---
+    // Collectibles: support BOTH formats:
+    // A) array: [{x,y,shape,color}, ...]
+    // B) object: {count, seed}
     const cData = levelJson.collectibles ?? { count: 8, seed: 3025 };
+
+    this.collectibles = [];
+    this.collectedCount = 0;
+
+    // ---------- CASE A: explicit list ----------
+    if (Array.isArray(cData)) {
+      this.collectCountTarget = cData.length;
+
+      for (const item of cData) {
+        const shape = item.shape ?? "circle";
+        const col = color(item.color ?? "#88AADD");
+        col.setAlpha(210);
+
+        this.collectibles.push({
+          x: item.x,
+          y: item.y,
+          r: 12,
+          shape,
+          col,
+          collected: false,
+        });
+      }
+      return;
+    }
+
+    // ---------- CASE B: procedural ----------
     this.collectSeed = cData.seed ?? 3025;
     this.collectCountTarget = cData.count ?? 8;
 
-    this.collectibles = [];
-    this.collectedCount = 0;
-
-    this._spawnCollectibles();
-  }
-
-  _spawnCollectibles() {
-    this.collectibles = [];
-    this.collectedCount = 0;
-
     randomSeed(this.collectSeed);
+
     const shapes = ["circle", "square", "triangle", "star"];
 
-    // Prefer “reachable-ish” platforms: not tiny, not extremely high
+    // pick “safe” platforms: wide enough + not too high
     let candidates = this.platforms.filter((p) => p.w >= 90 && p.y >= 260);
     if (candidates.length === 0) candidates = this.platforms;
+
+    const r = 12;
+    const margin = 30;
 
     for (let i = 0; i < this.collectCountTarget; i++) {
       const plat = random(candidates);
 
-      const x = random(plat.x + 28, plat.x + plat.w - 28);
-      const y = plat.y - 26; // consistently just above platform
+      // avoid placing inside end zone area
+      let x = random(plat.x + margin, plat.x + plat.w - margin);
+      if (x > this.endZone.x - 40) x = this.endZone.x - 60;
+
+      // always just above platform surface (reachable + visible)
+      const y = plat.y - (r + 10);
 
       const shape = random(shapes);
       const col = color(random(60, 200), random(60, 200), random(60, 200));
       col.setAlpha(210);
 
-      this.collectibles.push({ x, y, r: 12, shape, col, collected: false });
+      this.collectibles.push({
+        x,
+        y,
+        r,
+        shape,
+        col,
+        collected: false,
+      });
     }
+  }
+
+  playerInEndZone(player) {
+    // player is a circle, endZone is a rect
+    return (
+      player.x + player.r > this.endZone.x &&
+      player.x - player.r < this.endZone.x + this.endZone.w &&
+      player.y + player.r > this.endZone.y &&
+      player.y - player.r < this.endZone.y + this.endZone.h
+    );
   }
 
   updateCollectibles(player) {
@@ -84,36 +127,23 @@ class WorldLevel {
     }
   }
 
-  playerInEndZone(player) {
-    const p = {
-      x: player.x - player.r,
-      y: player.y - player.r,
-      w: player.r * 2,
-      h: player.r * 2,
-    };
-    const z = this.endZone;
-    return (
-      p.x < z.x + z.w && p.x + p.w > z.x && p.y < z.y + z.h && p.y + p.h > z.y
-    );
-  }
-
   drawWorld() {
     background(this.theme.bg);
-
-    // platforms
     push();
     rectMode(CORNER);
     noStroke();
-    fill(this.theme.platform);
-    for (const p of this.platforms) rect(p.x, p.y, p.w, p.h);
-    pop();
 
-    // end zone hint (subtle)
+    // platforms
+    fill(this.theme.platform);
+    for (const p of this.platforms) {
+      rect(p.x, p.y, p.w, p.h);
+    }
+
+    // end zone strip
     push();
     noStroke();
-    const pulse = 30 + sin(frameCount * 0.04) * 20;
-    fill(0, 0, 0, pulse);
-    rect(this.endZone.x, this.endZone.y, this.endZone.w, this.endZone.h);
+    fill(30, 30, 30, 35);
+    rect(this.endZone.x, 0, this.endZone.w, this.endZone.h);
     pop();
 
     // collectibles
@@ -136,7 +166,7 @@ class WorldLevel {
         rect(0, 0, it.r * 2, it.r * 2);
       } else if (it.shape === "triangle") {
         triangle(0, -it.r, -it.r, it.r, it.r, it.r);
-      } else {
+      } else if (it.shape === "star") {
         beginShape();
         for (let k = 0; k < 10; k++) {
           const ang = (k / 10) * TAU - HALF_PI;
@@ -148,5 +178,7 @@ class WorldLevel {
 
       pop();
     }
+
+    pop();
   }
 }

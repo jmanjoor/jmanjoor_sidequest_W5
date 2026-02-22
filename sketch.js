@@ -26,12 +26,26 @@ function setup() {
 }
 
 function loadLevel(i) {
-  levelIndex = constrain(i, 0, allLevelsData.levels.length - 1);
+  const levels = allLevelsData.levels;
+
+  if (!Array.isArray(levels)) {
+    console.error("levels.json failed to load");
+    return;
+  }
+
+  // Check if we are out of levels
+  if (i >= levels.length) {
+    gameFinished = true;
+    return;
+  }
+
+  levelIndex = i; // This updates the global index
   level = LevelLoader.fromLevelsJson(allLevelsData, levelIndex);
 
   player = new BlobPlayer();
   player.spawnFromLevel(level);
 
+  // Reset camera for the new level
   cam.x = player.x - width / 2;
   cam.y = 0;
   cam.clampToWorld(level.w, level.h);
@@ -125,7 +139,8 @@ function keyPressed() {
   }
 
   if (key === "r" || key === "R") {
-    loadLevel(levelIndex);
+    if (gameFinished) loadLevel(0);
+    else loadLevel(levelIndex);
     return false;
   }
 
