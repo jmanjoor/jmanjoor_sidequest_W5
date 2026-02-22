@@ -35,7 +35,7 @@ class BlobPlayer {
     this.onGround = false;
 
     this.gravity = level.gravity;
-    this.vy = level.jumpV * 1.2;
+    this.jumpV = level.jumpV; //
   }
 
   tryJump() {

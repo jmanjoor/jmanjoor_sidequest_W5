@@ -26,8 +26,6 @@ function setup() {
 }
 
 function loadLevel(i) {
-  gameFinished = false; // ✅ whenever we load a level, we're not "finished"
-
   levelIndex = constrain(i, 0, allLevelsData.levels.length - 1);
   level = LevelLoader.fromLevelsJson(allLevelsData, levelIndex);
 
@@ -38,7 +36,8 @@ function loadLevel(i) {
   cam.y = 0;
   cam.clampToWorld(level.w, level.h);
 
-  levelCompleteTimer = 0; // ✅ reset on every level load
+  levelCompleteTimer = 0;
+  gameFinished = false;
 }
 
 function respawnHere() {
@@ -50,13 +49,11 @@ function respawnHere() {
 }
 
 function draw() {
-  // ✅ If game is finished, show calm end screen and STOP.
   if (gameFinished) {
-    background(level?.theme?.bg ?? "#F0F0F0");
+    background(240);
     fill(0);
-    noStroke();
-    text("All discoveries found 🌿", 10, 18);
-    text("Press R to replay from Level 1", 10, 36);
+    text("Finished ✅", 10, 18);
+    text("Press R to restart", 10, 36);
     return;
   }
 
@@ -64,38 +61,38 @@ function draw() {
   player.update(level);
   level.updateCollectibles(player);
 
-  // respawn if blob falls below death line
+  // fall death -> respawn
   if (player.y - player.r > level.deathY) {
     respawnHere();
   }
 
-  // --- level completion → auto advance ---
-  if (level.collectedCount >= level.collectCountTarget) {
+  // --- completion rule: ALL collected + REACH end zone ---
+  const allCollected = level.collectedCount >= level.collectCountTarget;
+  const reachedEnd = level.playerInEndZone(player);
+
+  if (allCollected && reachedEnd) {
     levelCompleteTimer++;
 
-    // little pause for calm pacing
-    if (levelCompleteTimer > 75) {
-      // ✅ If there is another level, go to it
+    if (levelCompleteTimer > 45) {
       if (levelIndex < allLevelsData.levels.length - 1) {
         loadLevel(levelIndex + 1);
         return;
+      } else {
+        gameFinished = true;
+        return;
       }
-
-      // ✅ Otherwise, we finished the last level. End calmly.
-      gameFinished = true;
-      return;
     }
   } else {
     levelCompleteTimer = 0;
   }
 
-  // --- camera (calmer after completion) ---
-  const calm = level.collectedCount >= level.collectCountTarget;
+  // --- camera (calmer after all collected) ---
+  const calm = allCollected;
   cam.followSideScrollerX(player.x, level.camLerp, calm);
   cam.y = 0;
   cam.clampToWorld(level.w, level.h);
 
-  // --- draw world ---
+  // --- draw ---
   cam.begin();
   level.drawWorld();
   player.draw(level.theme.blob);
@@ -108,48 +105,27 @@ function draw() {
   text("A/D or ←/→ move • Space/W/↑ jump • Fall = respawn", 10, 36);
   text("camLerp(JSON): " + level.camLerp + "  world.w: " + level.w, 10, 54);
   text(
-    "platforms: " +
-      level.platforms.length +
-      " start: " +
-      level.start.x +
-      "," +
-      level.start.y,
+    "collected: " + level.collectedCount + "/" + level.collectCountTarget,
     10,
     72,
   );
-  text("cam: " + cam.x + ", " + cam.y, 10, 90);
-
-  const p0 = level.platforms[0];
-  if (p0) text(`p0: x=${p0.x} y=${p0.y} w=${p0.w} h=${p0.h}`, 10, 108);
-
-  text(
-    "collected: " + level.collectedCount + "/" + level.collectCountTarget,
-    10,
-    126,
-  );
-  text("Press K to respawn if stuck", 10, 144);
+  text("Goal: dark strip at far right → enter after collecting all", 10, 90);
+  text("Press K to respawn if stuck", 10, 108);
 }
 
 function keyPressed() {
-  // jump
   if (key === " " || key === "W" || key === "w" || keyCode === UP_ARROW) {
-    if (!gameFinished) player.tryJump();
+    player.tryJump();
     return false;
   }
 
-  // manual respawn
   if (key === "k" || key === "K") {
-    if (!gameFinished) respawnHere();
+    respawnHere();
     return false;
   }
 
-  // restart game (from level 1) if finished, otherwise restart current level
   if (key === "r" || key === "R") {
-    if (gameFinished) {
-      loadLevel(0);
-    } else {
-      loadLevel(levelIndex);
-    }
+    loadLevel(levelIndex);
     return false;
   }
 

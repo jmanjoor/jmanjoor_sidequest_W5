@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "levels": [
     {
-      "name": "Intro Steps",
+      "name": "Level 1",
       "theme": { "bg": "#F0F0F0", "platform": "#C8C8C8", "blob": "#1478FF" },
       "gravity": 0.55,
       "jumpV": -13.5,
@@ -30,16 +30,17 @@
 
         { "x": 1200, "y": 424, "w": 520, "h": 36 },
         { "x": 1400, "y": 344, "w": 140, "h": 12 }
-      ]
+      ],
+      "end": { "x": 2280, "w": 80 }
     },
 
     {
-      "name": "Level Two",
+      "name": "Level 2",
       "theme": { "bg": "#F0F0F0", "platform": "#C8C8C8", "blob": "#1478FF" },
       "gravity": 0.55,
-      "jumpV": -10.0,
+      "jumpV": -13.5,
       "camera": { "lerp": 0.025 },
-      "world": { "w": 2400, "h": 600, "deathY": 700 },
+      "world": { "w": 2400, "h": 600, "deathY": 520 },
       "collectibles": { "count": 10, "seed": 3026 },
       "start": { "x": 80, "y": 220, "r": 26 },
       "platforms": [
@@ -53,7 +54,8 @@
         { "x": 1180, "y": 350, "w": 120, "h": 14 },
         { "x": 1580, "y": 330, "w": 140, "h": 14 },
         { "x": 1880, "y": 310, "w": 110, "h": 14 }
-      ]
+      ],
+      "end": { "x": 2280, "w": 80 }
     }
   ]
 }

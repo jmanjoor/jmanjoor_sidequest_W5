@@ -27,54 +27,48 @@ class WorldLevel {
       (p) => new Platform(p.x, p.y, p.w, p.h),
     );
 
-    // Collectibles config (from JSON)
+    // --- End zone (finish area) ---
+    // Default: last 120px of the world
+    this.endZone = levelJson.endZone ?? {
+      x: this.w - 140,
+      y: 0,
+      w: 140,
+      h: this.h,
+    };
+
+    // --- Collectibles (deterministic via seed) ---
     const cData = levelJson.collectibles ?? { count: 8, seed: 3025 };
-    this.collectCountTarget = cData.count ?? 8;
     this.collectSeed = cData.seed ?? 3025;
+    this.collectCountTarget = cData.count ?? 8;
 
     this.collectibles = [];
     this.collectedCount = 0;
 
-    this._generateCollectibles();
+    this._spawnCollectibles();
   }
 
-  _generateCollectibles() {
-    randomSeed(this.collectSeed);
-
-    const shapes = ["circle", "square", "triangle", "star"];
-
-    // Choose platforms that are reachable-ish:
-    // - wide enough to land on
-    // - not super high (small y means higher up)
-    // - not the bottom "trap" floor if you have one
-    let candidates = this.platforms.filter(
-      (p) => p.w >= 110 && p.y >= 220 && p.y <= 420,
-    );
-    if (candidates.length === 0) candidates = this.platforms;
-
+  _spawnCollectibles() {
     this.collectibles = [];
     this.collectedCount = 0;
+
+    randomSeed(this.collectSeed);
+    const shapes = ["circle", "square", "triangle", "star"];
+
+    // Prefer “reachable-ish” platforms: not tiny, not extremely high
+    let candidates = this.platforms.filter((p) => p.w >= 90 && p.y >= 260);
+    if (candidates.length === 0) candidates = this.platforms;
 
     for (let i = 0; i < this.collectCountTarget; i++) {
       const plat = random(candidates);
 
-      const r = 12;
-      const x = random(plat.x + 30, plat.x + plat.w - 30);
-      const y = plat.y - (r + 10); // always just above the platform
+      const x = random(plat.x + 28, plat.x + plat.w - 28);
+      const y = plat.y - 26; // consistently just above platform
 
       const shape = random(shapes);
-
-      const col = color(random(70, 200), random(70, 200), random(70, 200));
+      const col = color(random(60, 200), random(60, 200), random(60, 200));
       col.setAlpha(210);
 
-      this.collectibles.push({
-        x,
-        y,
-        r,
-        shape,
-        col,
-        collected: false,
-      });
+      this.collectibles.push({ x, y, r: 12, shape, col, collected: false });
     }
   }
 
@@ -90,18 +84,37 @@ class WorldLevel {
     }
   }
 
+  playerInEndZone(player) {
+    const p = {
+      x: player.x - player.r,
+      y: player.y - player.r,
+      w: player.r * 2,
+      h: player.r * 2,
+    };
+    const z = this.endZone;
+    return (
+      p.x < z.x + z.w && p.x + p.w > z.x && p.y < z.y + z.h && p.y + p.h > z.y
+    );
+  }
+
   drawWorld() {
     background(this.theme.bg);
 
+    // platforms
     push();
     rectMode(CORNER);
     noStroke();
-
-    // platforms
     fill(this.theme.platform);
-    for (const p of this.platforms) {
-      rect(p.x, p.y, p.w, p.h);
-    }
+    for (const p of this.platforms) rect(p.x, p.y, p.w, p.h);
+    pop();
+
+    // end zone hint (subtle)
+    push();
+    noStroke();
+    const pulse = 30 + sin(frameCount * 0.04) * 20;
+    fill(0, 0, 0, pulse);
+    rect(this.endZone.x, this.endZone.y, this.endZone.w, this.endZone.h);
+    pop();
 
     // collectibles
     for (const it of this.collectibles) {
@@ -110,7 +123,7 @@ class WorldLevel {
       push();
       translate(it.x, it.y);
 
-      const a = 150 + sin(frameCount * 0.02) * 60; // calm pulse
+      const a = 160 + sin(frameCount * 0.02) * 60;
       const c = color(it.col);
       c.setAlpha(a);
       fill(c);
@@ -123,7 +136,7 @@ class WorldLevel {
         rect(0, 0, it.r * 2, it.r * 2);
       } else if (it.shape === "triangle") {
         triangle(0, -it.r, -it.r, it.r, it.r, it.r);
-      } else if (it.shape === "star") {
+      } else {
         beginShape();
         for (let k = 0; k < 10; k++) {
           const ang = (k / 10) * TAU - HALF_PI;
@@ -135,7 +148,5 @@ class WorldLevel {
 
       pop();
     }
-
-    pop();
   }
 }
