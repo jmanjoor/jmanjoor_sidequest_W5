@@ -5,11 +5,19 @@ class Camera2D {
     this.x = 0;
     this.y = 0;
   }
-  followSideScrollerX(targetX, lerpAmt, calm = false) {
-    const desired = targetX - this.viewW / 2;
+  followSideScrollerX(
+    targetX,
+    lerpAmt,
+    calm = false,
+    bias = 0.35,
+    lookAhead = 0,
+  ) {
+    // bias: 0.5 = center, 0.35 = player left-of-center (more visibility ahead)
+    const desired = targetX + lookAhead - this.viewW * bias;
     const amt = calm ? lerpAmt * 0.4 : lerpAmt;
     this.x = lerp(this.x, desired, amt);
 
+    // subtle drift
     this.x += sin(frameCount * 0.002) * 0.2;
   }
 

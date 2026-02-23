@@ -99,6 +99,8 @@ class WorldLevel {
   }
 
   drawWorld() {
+    stroke(255, 255, 255, 20);
+    strokeWeight(1);
     background(this.theme.bg);
     push();
     noStroke();

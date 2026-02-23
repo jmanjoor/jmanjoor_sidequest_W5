@@ -85,15 +85,23 @@ function draw() {
 
   if (allCollected && reachedEnd) {
     levelCompleteTimer++;
+
     if (levelCompleteTimer > 45) {
-      loadLevel(levelIndex + 1);
-      return;
+      if (levelIndex + 1 < allLevelsData.levels.length) {
+        loadLevel(levelIndex + 1);
+        return;
+      } else {
+        gameFinished = true;
+        noLoop(); // <-- freezes the sketch so it can't "restart"
+        return;
+      }
     }
   } else {
     levelCompleteTimer = 0;
   }
 
-  cam.followSideScrollerX(player.x, level.camLerp, allCollected);
+  const look = player.vx * 25; // pushes camera in direction of movement
+  cam.followSideScrollerX(player.x, level.camLerp, allCollected, 0.35, look);
   cam.y = 0;
   cam.clampToWorld(level.w, level.h);
 
