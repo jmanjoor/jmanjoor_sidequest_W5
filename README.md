@@ -43,5 +43,4 @@ N/A
 ---
 
 ## GenAI
-
-## Starter code was provided by Dr. Karen Cochrane and David Han. GenAI tools were used to support understanding of the starter code’s structure and class relationships, assist with debugging camera behavior and level progression logic, and clarify the implementation of JSON-based configuration files and collectible generation logic.
+Starter code was provided by Dr. Karen Cochrane and David Han. GenAI tools were used to support understanding of the starter code’s structure and class relationships, assist with debugging camera behavior and level progression logic, and clarify the implementation of JSON-based configuration files and collectible generation logic.
