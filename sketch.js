@@ -91,8 +91,9 @@ function draw() {
         loadLevel(levelIndex + 1);
         return;
       } else {
+        alert("Game Over 🎉 Thanks for playing");
         gameFinished = true;
-        noLoop(); // <-- freezes the sketch so it can't "restart"
+        noLoop();
         return;
       }
     }
